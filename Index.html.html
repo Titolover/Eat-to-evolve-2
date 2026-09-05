@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Eat to Evolve</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#18251a;font-family:system-ui,-apple-system,sans-serif;touch-action:none}
+#game{position:relative;width:100%;height:100%;overflow:hidden;background:#8dcc70}
+#world{position:absolute;width:2400px;height:1800px;background:
+radial-gradient(circle at 20% 30%,#a8dd83 0 80px,transparent 82px),
+radial-gradient(circle at 70% 70%,#a8dd83 0 100px,transparent 102px),
+linear-gradient(135deg,#8dcc70,#6fb45c)}
+#hud{position:fixed;z-index:20;top:10px;left:10px;right:10px;display:flex;gap:8px;justify-content:space-between;pointer-events:none}
+.card{background:#fffffff0;border:2px solid #254b29;border-radius:14px;padding:7px 10px;box-shadow:0 3px 8px #0003;font-size:13px}
+#xpbox{width:150px}#bar{height:9px;background:#ddd;border-radius:9px;overflow:hidden;margin-top:4px}#xpbar{height:100%;width:0;background:#f1c84b}
+.thing{position:absolute;transform:translate(-50%,-50%);user-select:none}
+.food{font-size:34px;z-index:4;filter:drop-shadow(0 2px 1px #0003)}
+.enemy{font-size:45px;z-index:5}
+#player{font-size:60px;z-index:10;filter:drop-shadow(0 3px 2px #0004)}
+#joystick{position:fixed;z-index:30;bottom:25px;left:25px;width:115px;height:115px;border-radius:50%;background:#ffffff55;border:3px solid #fff9}
+#stick{position:absolute;left:50%;top:50%;width:52px;height:52px;transform:translate(-50%,-50%);border-radius:50%;background:#fff;border:2px solid #315b35;box-shadow:0 2px 6px #0003}
+#hint{position:fixed;z-index:20;bottom:12px;left:50%;transform:translateX(-50%);background:#ffffffe8;border:2px solid #315b35;border-radius:14px;padding:7px 12px;font-size:12px;white-space:nowrap}
+#over{display:none;position:fixed;inset:0;z-index:100;background:#0009;align-items:center;justify-content:center}
+.panel{background:white;border:3px solid #254b29;border-radius:20px;padding:25px;text-align:center;width:min(310px,80vw)}
+button{background:#254b29;color:white;border:0;border-radius:12px;padding:12px 20px;font-weight:700;font-size:16px}
+</style>
+</head>
+<body>
+<div id="game">
+ <div id="world"></div>
+ <div id="hud">
+  <div class="card"><b id="species">🐭 Mouse</b><br>Level <b id="level">1</b> · 🪙 <b id="coins">0</b></div>
+  <div class="card" id="xpbox">XP <span id="xptext">0 / 12</span><div id="bar"><div id="xpbar"></div></div><div>❤️ <span id="hp">3</span></div></div>
+ </div>
+ <div id="joystick"><div id="stick"></div></div>
+ <div id="hint">Eat food • avoid predators • evolve</div>
+ <div id="over"><div class="panel"><h2>Game Over</h2><p>You reached <b id="finalLevel">1</b> and collected 🪙 <b id="finalCoins">0</b>.</p><button onclick="location.reload()">Play Again</button></div></div>
+</div>
+<script>
+const W=2400,H=1800,world=document.querySelector('#world');
+const species=[['🐭','Mouse',58,3],['🐹','Hamster',62,3],['🐰','Rabbit',66,4],['🦊','Fox',72,4],['🐺','Wolf',78,5],['🐯','Tiger',84,5],['🦁','Lion',90,6],['🐻','Bear',98,7],['🐘','Elephant',110,8],['🐉','Dragon',125,10]];
+const foods=[['🍎',1],['🥕',1],['🍓',2],['🍇',2],['🌽',3],['🍉',4],['🍖',5],['🍗',7]];
+const predators=['🦅','🐍','🐊','🦈'];
+let p={x:W/2,y:H/2},level=1,xp=0,coins=0,hp=3,dead=false,keys={};
+let food=[],enemies=[],cam={x:0,y:0},joy={x:0,y:0};
+
+function need(){return Math.round(12*Math.pow(1.42,level-1))}
+function addFood(){let [e,v]=foods[Math.floor(Math.random()*foods.length)],el=document.createElement('div');el.className='thing food';el.textContent=e;let o={el,x:60+Math.random()*(W-120),y:80+Math.random()*(H-160),v};el.style.left=o.x+'px';el.style.top=o.y+'px';world.appendChild(el);food.push(o)}
+function addEnemy(){let el=document.createElement('div');el.className='thing enemy';el.textContent=predators[Math.floor(Math.random()*predators.length)];let o={el,x:100+Math.random()*(W-200),y:100+Math.random()*(H-200),speed:.55+level*.04};el.style.left=o.x+'px';el.style.top=o.y+'px';world.appendChild(el);enemies.push(o)}
+for(let i=0;i<35;i++)addFood();for(let i=0;i<5;i++)addEnemy();
+const player=document.createElement('div');player.id='player';player.className='thing';world.appendChild(player);
+
+function hud(){let s=species[Math.min(level-1,9)];player.textContent=s[0];player.style.fontSize=s[2]+'px';document.querySelector('#species').textContent=s[0]+' '+s[1];document.querySelector('#level').textContent=level;document.querySelector('#coins').textContent=coins;document.querySelector('#xptext').textContent=xp+' / '+need();document.querySelector('#xpbar').style.width=(xp/need()*100)+'%';document.querySelector('#hp').textContent=hp}
+function distance(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
+function evolve(){if(xp>=need()){xp-=need();level++;coins+=10;if(level%2===0)addEnemy();hud()}}
+function loop(){
+ if(dead)return;
+ let dx=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0)+joy.x;
+ let dy=(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0)+joy.y;
+ let l=Math.hypot(dx,dy);if(l){dx/=l;dy/=l;p.x+=dx*(2.8+level*.12);p.y+=dy*(2.8+level*.12)}
+ p.x=Math.max(30,Math.min(W-30,p.x));p.y=Math.max(55,Math.min(H-35,p.y));
+ player.style.left=p.x+'px';player.style.top=p.y+'px';
+ for(let i=food.length-1;i>=0;i--)if(distance(p,food[i])<42){let f=food[i];f.el.remove();food.splice(i,1);xp+=f.v;coins+=f.v;addFood();evolve()}
+ for(let e of enemies){let d=distance(p,e);if(d){e.x+=(p.x-e.x)/d*e.speed;e.y+=(p.y-e.y)/d*e.speed;e.el.style.left=e.x+'px';e.el.style.top=e.y+'px'}if(d<42){hp--;e.x=Math.random()*W;e.y=Math.random()*H;hud();if(hp<=0){dead=true;document.querySelector('#finalLevel').textContent=level;document.querySelector('#finalCoins').textContent=coins;document.querySelector('#over').style.display='flex'}}}
+ cam.x=Math.max(0,Math.min(W-innerWidth,p.x-innerWidth/2));cam.y=Math.max(0,Math.min(H-innerHeight,p.y-innerHeight/2));world.style.transform=`translate(${-cam.x}px,${-cam.y}px)`;
+ requestAnimationFrame(loop)
+}
+addEventListener('keydown',e=>keys[e.key.toLowerCase()]=true);addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+const joyEl=document.querySelector('#joystick'),stick=document.querySelector('#stick');
+function joyMove(e){let r=joyEl.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2,dx=e.clientX-cx,dy=e.clientY-cy,max=43,l=Math.hypot(dx,dy);if(l>max){dx=dx/l*max;dy=dy/l*max}joy.x=dx/max;joy.y=dy/max;stick.style.left=`calc(50% + ${dx}px)`;stick.style.top=`calc(50% + ${dy}px)`}
+joyEl.addEventListener('pointerdown',e=>{joyMove(e);joyEl.setPointerCapture(e.pointerId)});joyEl.addEventListener('pointermove',e=>{if(e.buttons)joyMove(e)});joyEl.addEventListener('pointerup',()=>{joy.x=joy.y=0;stick.style.left='50%';stick.style.top='50%'});
+hud();loop();
+</script>
+</body>
+</html>
